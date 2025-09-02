@@ -4,7 +4,12 @@ import (
 	"fmt"
 	"os"
 	"url-shortener/internal/config"
+	mwLogger "url-shortener/internal/http-server/middleware/logger"
+	"url-shortener/internal/lib/logger/zp"
+	"url-shortener/internal/storage/sqlite"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -25,11 +30,19 @@ func main() {
 	zap.ReplaceGlobals(log)
 	zap.L().Info("starting url-shortener", zap.String("env", cfg.Env))
 	zap.L().Debug("debug messages are enabled")
-	// TODO: init logger: slog??? i'll use ZAP
 
-	// TODO: init storage: sqlite... or postgres?
+	storage, err := sqlite.New(cfg.StoragePath)
+	if err != nil {
+		zap.L().Error("failed to init storage", zp.Err(err))
+		os.Exit(1)
+	}
 
-	// TODO: init router: chi, "chi render"
+	router := chi.NewRouter()
+	// middleware
+	router.Use(middleware.RequestID)
+	router.Use(mwLogger.New(log))
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.URLFormat)
 
 	// TODO: run server
 }
